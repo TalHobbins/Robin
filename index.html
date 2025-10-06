@@ -1,68 +1,160 @@
-import { useState, useEffect } from "react";
+
+        
+           import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function RobinStory() {
-  const [side, setSide] = useState("split");
-  const [phase, setPhase] = useState("begin"); // begin → merge → cancel
-  const [showCancelled, setShowCancelled] = useState(false);
+const slides = [
+  {
+    id: 1,
+    social: {
+      image: "https://images.unsplash.com/photo-1517841905240-472988babdf9",
+      caption: "✨ Brunch vibes ✨ #blessed #aesthetic",
+    },
+    real: {
+      image: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df",
+      caption: "Cold coffee. Ate alone. The silence hums louder than the city.",
+    },
+  },
+  {
+    id: 2,
+    social: {
+      image: "https://images.unsplash.com/photo-1535469420027-517674dad7f2",
+      caption: "Chasing sunsets 🌇 Life is beautiful 💕",
+    },
+    real: {
+      image: "https://images.unsplash.com/photo-1507842217343-583bb7270b66",
+      caption: "Watched it through my phone screen. Didn’t feel anything.",
+    },
+  },
+  {
+    id: 3,
+    social: {
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2",
+      caption: "Surrounded by friends 💋 #perfectnight",
+    },
+    real: {
+      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e",
+      caption: "Crowded room. Still alone. Everyone talking to their screens.",
+    },
+  },
+  {
+    id: 4,
+    social: {
+      image: "https://images.unsplash.com/photo-1556740738-b6a63e27c4df",
+      caption: "New me. Reinvented. 💫",
+    },
+    real: {
+      image: "https://images.unsplash.com/photo-1520201163981-8cc95007dd2c",
+      caption: "She doesn’t know who she’s reinventing for anymore.",
+    },
+  },
+];
+
+export default function RobinJourney() {
+  const [index, setIndex] = useState(0);
+  const [merged, setMerged] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => {
-    if (phase === "merge") {
-      setTimeout(() => setPhase("cancel"), 8000);
-    }
-    if (phase === "cancel") {
-      setTimeout(() => setShowCancelled(true), 4000);
-    }
-  }, [phase]);
-
-  const handleClick = (newSide) => setSide(newSide);
+    const timer = setInterval(() => {
+      if (index < slides.length - 1) {
+        setIndex((prev) => prev + 1);
+      } else {
+        setMerged(true);
+        clearInterval(timer);
+        setTimeout(() => setCancelled(true), 7000);
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [index]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden font-sans">
-      {/* Split screens */}
-      <div className="grid grid-cols-2 h-full transition-all duration-700">
-        {/* Social Media Side */}
-        <motion.div
-          onClick={() => handleClick("social")}
-          animate={{
-            flex: side === "social" ? 2 : 1,
-            filter: phase === "merge" ? "grayscale(100%)" : "none",
-          }}
-          className="relative bg-gradient-to-b from-pink-400 via-purple-500 to-blue-500 text-white overflow-hidden"
-        >
-          <div className="absolute inset-0 p-8 overflow-y-scroll">
-            <h1 className="text-4xl font-bold mb-4">✨ Robin Online ✨</h1>
-            <p className="mb-6 italic text-lg opacity-90">
-              “Everything looks perfect here. Every photo is a story. Every
-              heart is a dopamine hit.”
-            </p>
-            <div className="space-y-4 text-sm leading-relaxed">
-              <p>Followers adore her life. Filtered breakfasts, fake sunsets.</p>
-              <p>But it’s not life — it’s theatre.</p>
-              <p>Scroll. Scroll. Scroll. The illusion deepens.</p>
-              <p>Every like burns brighter than sunlight ever could.</p>
-            </div>
-          </div>
-        </motion.div>
+      {!merged ? (
+        <div className="grid grid-cols-2 h-full">
+          {/* SOCIAL MEDIA SIDE */}
+          <Slide
+            key={slides[index].id + "-social"}
+            image={slides[index].social.image}
+            caption={slides[index].social.caption}
+            type="social"
+          />
 
-        {/* Real Life Side */}
+          {/* REAL LIFE SIDE */}
+          <Slide
+            key={slides[index].id + "-real"}
+            image={slides[index].real.image}
+            caption={slides[index].real.caption}
+            type="real"
+          />
+        </div>
+      ) : !cancelled ? (
         <motion.div
-          onClick={() => handleClick("real")}
-          animate={{
-            flex: side === "real" ? 2 : 1,
-            filter: phase === "merge" ? "grayscale(0%) brightness(70%)" : "grayscale(100%)",
-          }}
-          className="relative bg-neutral-800 text-neutral-200 overflow-hidden"
+          className="absolute inset-0 flex items-center justify-center text-white bg-black"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.8, 1] }}
+          transition={{ duration: 3 }}
         >
-          <div className="absolute inset-0 p-8 overflow-y-scroll">
-            <h1 className="text-4xl font-serif mb-4">Robin in Reality</h1>
-            <p className="mb-6 text-lg opacity-80">
-              “Behind the screen, silence. Empty rooms. The food goes cold before
-              the photo uploads.”
-            </p>
-            <div className="space-y-4 text-sm leading-relaxed">
-              <p>Her world smells like coffee gone stale.</p>
-              <p>She doesn’t feel the sun anymore — only the glow of pixels.</p>
-              <p>Loneliness grows like static.</p>
-              <p>And yet she keeps scrolling.</p>
-            </div>
+          <motion.h1
+            className="text-4xl md:text-6xl font-bold"
+            animate={{
+              opacity: [0.3, 1, 0.3],
+              textShadow: [
+                "0 0 10px #f0f",
+                "0 0 20px #0ff",
+                "0 0 30px #f0f",
+              ],
+            }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            merging identities...
+          </motion.h1>
+        </motion.div>
+      ) : (
+        <CancelledScreen />
+      )}
+    </div>
+  );
+}
+
+function Slide({ image, caption, type }) {
+  const isSocial = type === "social";
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.5 }}
+      className={`relative h-full w-full flex items-end justify-center text-center ${
+        isSocial ? "saturate-200" : "grayscale"
+      }`}
+    >
+      <img
+        src={image}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      <div
+        className={`absolute inset-0 ${
+          isSocial
+            ? "bg-gradient-to-t from-pink-400/40 via-transparent"
+            : "bg-gradient-to-t from-black/70 via-transparent"
+        }`}
+      />
+      <motion.p
+        className={`relative z-10 text-white px-6 pb-10 text-lg md:text-xl font-light ${
+          isSocial ? "italic" : "font-serif"
+        }`}
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 1.2 }}
+      >
+        {caption}
+      </motion.p>
+    </motion.div>
+  );
+}
+
+function CancelledScreen() {
+  const [text, setText] = useState("");
+  const target = "cancelled";
