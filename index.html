@@ -62,11 +62,321 @@ const musicUrl =
 export default function RobinSplitScroller() {
   const [index, setIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [merged, setMerged] = useState(f
+  const [merged, setMerged] = useState(false); // when slides merge
+  const [showCancelled, setShowCancelled] = useState(false);
+  const audioRef = useRef(null);
+  const containerRef = useRef(null);
+  const lastWheelRef = useRef(0);
+  const isTypingDoneRef = useRef(false);
 
-        
-        
-   
+  // navigation helpers
+  const goTo = useCallback(
+    (next) => {
+      if (merged) return;
+      if (next < 0) next = 0;
+      if (next >= slides.length) {
+        // trigger merge sequence
+        setMerged(true);
+        // after a short pause, show cancelled typing
+        setTimeout(() => {
+          setShowCancelled(true);
+        }, 7000);
+        return;
+      }
+      setIndex(next);
+    },
+    [merged]
+  );
 
-      
-       
+  const next = useCallback(() => goTo(index + 1), [index, goTo]);
+  const prev = useCallback(() => goTo(index - 1), [index, goTo]);
+
+  // autoplay music control
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.loop = true;
+    if (isPlaying) {
+      const p = a.play();
+      // browsers may return a promise; ignore if blocked
+      if (p && p.catch) p.catch(() => setIsPlaying(false));
+    } else {
+      a.pause();
+    }
+  }, [isPlaying]);
+
+  // keyboard nav
+  useEffect(() => {
+    function onKey(e) {
+      if (merged) return;
+      if (e.key === "ArrowDown" || e.key === "PageDown") {
+        next();
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+        prev();
+      } else if (e.key === " ") {
+        e.preventDefault();
+        setIsPlaying((p) => !p);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [index, merged, next, prev]);
+
+  // wheel navigation (debounced)
+  useEffect(() => {
+    function onWheel(e) {
+      const now = Date.now();
+      // throttle to 600ms
+      if (now - lastWheelRef.current < 600) return;
+      lastWheelRef.current = now;
+      if (e.deltaY > 0) next();
+      else prev();
+    }
+    const el = containerRef.current || window;
+    el.addEventListener("wheel", onWheel, { passive: true });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [next, prev]);
+
+  // touch / swipe navigation
+  useEffect(() => {
+    let startY = null;
+    let startX = null;
+
+    function onTouchStart(e) {
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+    }
+    function onTouchEnd(e) {
+      if (startY === null) return;
+      const endY = e.changedTouches[0].clientY;
+      const endX = e.changedTouches[0].clientX;
+      const dy = startY - endY;
+      const dx = startX - endX;
+      const threshold = 50;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > threshold) {
+        if (dy > 0) next();
+        else prev();
+      }
+      startY = null;
+      startX = null;
+    }
+    const el = containerRef.current || window;
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [next, prev]);
+
+  // autoplay progression if desired: **optional** automatic advance
+  // If you want auto-advance remove comments below
+  /*
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!merged) next();
+    }, 7000);
+    return () => clearTimeout(t);
+  }, [index, merged, next]);
+  */
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-screen w-screen overflow-hidden relative bg-yellow-50"
+      style={{
+        // pastel yellow base if Tailwind not present:
+        backgroundColor: "#FFF8D6",
+      }}
+    >
+      {/* thin vertical line down the middle */}
+      <div
+        aria-hidden
+        className="absolute inset-y-0 left-1/2 -translate-x-0.5 w-px bg-gray-300"
+        style={{
+          left: "50%",
+          transform: "translateX(-0.5px)",
+          width: "2px",
+          backgroundColor: "#F2E2A9",
+          boxShadow: "0 0 10px rgba(0,0,0,0.02)",
+        }}
+      />
+
+      {/* top controls: music / slide index */}
+      <div className="absolute top-6 left-6 z-50 flex items-center gap-3">
+        <button
+          onClick={() => setIsPlaying((p) => !p)}
+          className="px-3 py-1 rounded-full bg-white/80 text-sm shadow-sm backdrop-blur"
+        >
+          {isPlaying ? "Pause music" : "Play music"}
+        </button>
+        <div className="px-3 py-1 rounded-full bg-white/80 text-sm shadow-sm">
+          {index + 1}/{slides.length}
+        </div>
+      </div>
+
+      {/* prev/next buttons */}
+      <div className="absolute z-50 right-6 top-1/2 transform -translate-y-1/2 flex flex-col gap-3">
+        <button
+          onClick={prev}
+          aria-label="Previous"
+          className="bg-white/90 p-2 rounded-full shadow"
+        >
+          ↑
+        </button>
+        <button
+          onClick={next}
+          aria-label="Next"
+          className="bg-white/90 p-2 rounded-full shadow"
+        >
+          ↓
+        </button>
+      </div>
+
+      {/* hidden audio element */}
+      <audio ref={audioRef} src={musicUrl} />
+
+      {/* Slide viewport: vertical stack */}
+      <div className="relative h-full w-full">
+        <AnimatePresence initial={false} mode="wait">
+          {!merged ? (
+            <SlideView key={slides[index].id} slide={slides[index]} />
+          ) : !showCancelled ? (
+            <MergeView key="merge" />
+          ) : (
+            <CancelledView key="cancel" />
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/* SlideView: shows one full-viewport slide with split screen left/right.
+   The layout scrolls vertically by swapping the SlideView components with
+   AnimatePresence in the parent. */
+function SlideView({ slide }) {
+  return (
+    <motion.div
+      className="absolute inset-0 grid grid-cols-2 h-full w-full"
+      initial={{ y: "100%", opacity: 0 }}
+      animate={{ y: "0%", opacity: 1 }}
+      exit={{ y: "-100%", opacity: 0 }}
+      transition={{ duration: 0.8, ease: "easeInOut" }}
+    >
+      {/* SOCIAL side (left) */}
+      <div className="relative overflow-hidden flex items-end justify-center">
+        <img
+          src={slide.socialImg}
+          alt="social"
+          className="absolute inset-0 w-full h-full object-cover filter saturate-150 contrast-105"
+          style={{
+            transform: "scale(1.05)",
+            filter: "saturate(1.6) contrast(1.05)",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+        <div className="p-8 relative z-10 text-white text-left w-full">
+          <strong className="block text-2xl md:text-3xl">{slide.socialText}</strong>
+          <p className="mt-3 text-sm opacity-90 italic">
+            The curated highlight. Everything edited to perfection.
+          </p>
+        </div>
+      </div>
+
+      {/* REAL side (right) */}
+      <div className="relative overflow-hidden flex items-end justify-center">
+        <img
+          src={slide.realImg}
+          alt="real"
+          className="absolute inset-0 w-full h-full object-cover grayscale"
+          style={{
+            filter: "grayscale(1) brightness(0.78) contrast(0.95)",
+            transform: "scale(1.02)",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="p-8 relative z-10 text-neutral-100 text-left w-full">
+          <strong className="block text-2xl md:text-3xl font-serif">
+            {slide.realText}
+          </strong>
+          <p className="mt-3 text-sm opacity-80">
+            Behind the feed: quiet rooms and small, hollow moments.
+          </p>
+        </div>
+      </div>
+
+      {/* narration overlay (center bottom) */}
+      <motion.div
+        className="absolute left-1/2 -translate-x-1/2 bottom-12 w-11/12 md:w-2/3 z-40"
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -20, opacity: 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <div className="bg-white/90 px-6 py-3 rounded-xl text-sm shadow-lg">
+          <p className="text-black/90">{slide.narration}</p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* MergeView: visual glitch/merge scene when identity collapses */
+function MergeView() {
+  return (
+    <motion.div
+      className="absolute inset-0 flex items-center justify-center bg-black text-white"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, 0.6, 1] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 2 }}
+    >
+      <motion.div
+        className="text-center"
+        animate={{ scale: [1, 1.02, 1], rotate: [0, 0, -0.5] }}
+        transition={{ duration: 2, repeat: Infinity, repeatType: "reverse" }}
+      >
+        <h2 className="text-3xl md:text-5xl font-bold mb-6">merging identities...</h2>
+        <p className="max-w-xl mx-auto text-sm md:text-lg opacity-80 leading-relaxed">
+          The filtered self bleeds into the life beyond the glass. Her brain always
+          scrolls — even when the phone sleeps.
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* CancelledView: final blackout with typing "cancelled" */
+function CancelledView() {
+  const [text, setText] = useState("");
+  const target = "cancelled";
+  useEffect(() => {
+    let i = 0;
+    const t = setInterval(() => {
+      setText(target.slice(0, i + 1));
+      i++;
+      if (i >= target.length) clearInterval(t);
+    }, 220);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <motion.div
+      className="absolute inset-0 flex items-center justify-center bg-black text-red-500"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.2 }}
+    >
+      <div
+        style={{
+          fontFamily: "monospace",
+          fontSize: 64,
+          letterSpacing: 6,
+        }}
+      >
+        {text}
+      </div>
+    </motion.div>
+  );
+}
+
