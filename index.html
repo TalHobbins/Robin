@@ -1,0 +1,68 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function RobinStory() {
+  const [side, setSide] = useState("split");
+  const [phase, setPhase] = useState("begin"); // begin → merge → cancel
+  const [showCancelled, setShowCancelled] = useState(false);
+
+  useEffect(() => {
+    if (phase === "merge") {
+      setTimeout(() => setPhase("cancel"), 8000);
+    }
+    if (phase === "cancel") {
+      setTimeout(() => setShowCancelled(true), 4000);
+    }
+  }, [phase]);
+
+  const handleClick = (newSide) => setSide(newSide);
+
+  return (
+    <div className="relative h-screen w-full overflow-hidden font-sans">
+      {/* Split screens */}
+      <div className="grid grid-cols-2 h-full transition-all duration-700">
+        {/* Social Media Side */}
+        <motion.div
+          onClick={() => handleClick("social")}
+          animate={{
+            flex: side === "social" ? 2 : 1,
+            filter: phase === "merge" ? "grayscale(100%)" : "none",
+          }}
+          className="relative bg-gradient-to-b from-pink-400 via-purple-500 to-blue-500 text-white overflow-hidden"
+        >
+          <div className="absolute inset-0 p-8 overflow-y-scroll">
+            <h1 className="text-4xl font-bold mb-4">✨ Robin Online ✨</h1>
+            <p className="mb-6 italic text-lg opacity-90">
+              “Everything looks perfect here. Every photo is a story. Every
+              heart is a dopamine hit.”
+            </p>
+            <div className="space-y-4 text-sm leading-relaxed">
+              <p>Followers adore her life. Filtered breakfasts, fake sunsets.</p>
+              <p>But it’s not life — it’s theatre.</p>
+              <p>Scroll. Scroll. Scroll. The illusion deepens.</p>
+              <p>Every like burns brighter than sunlight ever could.</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Real Life Side */}
+        <motion.div
+          onClick={() => handleClick("real")}
+          animate={{
+            flex: side === "real" ? 2 : 1,
+            filter: phase === "merge" ? "grayscale(0%) brightness(70%)" : "grayscale(100%)",
+          }}
+          className="relative bg-neutral-800 text-neutral-200 overflow-hidden"
+        >
+          <div className="absolute inset-0 p-8 overflow-y-scroll">
+            <h1 className="text-4xl font-serif mb-4">Robin in Reality</h1>
+            <p className="mb-6 text-lg opacity-80">
+              “Behind the screen, silence. Empty rooms. The food goes cold before
+              the photo uploads.”
+            </p>
+            <div className="space-y-4 text-sm leading-relaxed">
+              <p>Her world smells like coffee gone stale.</p>
+              <p>She doesn’t feel the sun anymore — only the glow of pixels.</p>
+              <p>Loneliness grows like static.</p>
+              <p>And yet she keeps scrolling.</p>
+            </div>
